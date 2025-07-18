@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linear Regression Model - y = 3x + 4</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tensorflow/4.10.0/tf.min.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        @media (min-width: 768px) {
+            body {
+                padding: 20px;
+            }
+            .container {
+                padding: 30px;
+            }
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 2em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        @media (min-width: 768px) {
+            h1 {
+                font-size: 2.5em;
+                margin-bottom: 30px;
+            }
+        }
+        .section {
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .button {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+            width: 100%;
+            max-width: 200px;
+        }
+        @media (min-width: 768px) {
+            .button {
+                padding: 15px 30px;
+                font-size: 16px;
+                margin: 10px;
+                width: auto;
+            }
+        }
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        .button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .input-group {
+            margin: 15px 0;
+        }
+        input {
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            margin: 5px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            width: 100%;
+            max-width: 200px;
+            box-sizing: border-box;
+        }
+        @media (min-width: 768px) {
+            input {
+                width: auto;
+            }
+        }
+        .result {
+            background: rgba(76, 175, 80, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border: 1px solid rgba(76, 175, 80, 0.3);
+        }
+        .training-data {
+            background: rgba(33, 150, 243, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border: 1px solid rgba(33, 150, 243, 0.3);
+        }
+        .loading {
+            text-align: center;
+            font-size: 18px;
+            color: #ffeb3b;
+        }
+        .equation {
+            font-size: 20px;
+            text-align: center;
+            margin: 15px 0;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+        @media (min-width: 768px) {
+            .equation {
+                font-size: 24px;
+                margin: 20px 0;
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧠 Linear Regression Model</h1>
+        <div class="equation">
+            <strong>Target Equation: y = 3x + 4</strong>
+        </div>
+        
+        <div class="section">
+            <h2>🏋️ Model Training</h2>
+            <button id="trainButton" class="button" onclick="trainModel()">Train Model</button>
+            <div id="trainingStatus"></div>
+        </div>
+
+        <div class="section">
+            <h2>🔮 Make Prediction</h2>
+            <div class="input-group">
+                <input type="number" id="inputX" placeholder="Enter X value" value="5">
+                <button id="predictButton" class="button" onclick="makePrediction()" disabled>Predict</button>
+            </div>
+            <div id="predictionResult"></div>
+        </div>
+
+        <div class="section">
+            <h2>📈 Model Performance</h2>
+            <div id="modelPerformance"></div>
+        </div>
+    </div>
+
+    <script>
+        // Linear Regression Model Class
+        class LinearRegressionModel {
+            constructor() {
+                this.model = null;
+                this.isTraining = false;
+                this.isTrained = false;
+            }
+
+            // Create the model architecture
+            createModel() {
+                this.model = tf.sequential({
+                    layers: [
+                        tf.layers.dense({
+                            inputShape: [1],
+                            units: 1,
+                            activation: 'linear'
+                        })
+                    ]
+                });
+
+                // Compile the model
+                this.model.compile({
+                    optimizer: tf.train.sgd(0.01),
+                    loss: 'meanSquaredError',
+                    metrics: ['mse']
+                });
+            }
+
+            // Generate training data based on y = 3x + 4
+            generateTrainingData(numSamples = 100) {
+                const xValues = [];
+                const yValues = [];
+
+                for (let i = 0; i < numSamples; i++) {
+                    const x = Math.random() * 20 - 10; // Random x between -10 and 10
+                    const y = 3 * x + 4 + (Math.random() - 0.5) * 2; // Add small noise
+                    xValues.push(x);
+                    yValues.push(y);
+                }
+
+                return {
+                    x: tf.tensor2d(xValues, [numSamples, 1]),
+                    y: tf.tensor2d(yValues, [numSamples, 1]),
+                    xValues,
+                    yValues
+                };
+            }
+
+            // Train the model
+            async train(trainingData, epochs = 100) {
+                this.isTraining = true;
+                
+                const history = await this.model.fit(trainingData.x, trainingData.y, {
+                    epochs: epochs,
+                    batchSize: 32,
+                    validationSplit: 0.2,
+                    callbacks: {
+                        onEpochEnd: (epoch, log) => {
+                            if (epoch % 10 === 0) {
+                                document.getElementById('trainingStatus').innerHTML = `
+                                    <div class="loading">Training... Epoch ${epoch + 1}/${epochs}<br>
+                                    Loss: ${log.loss.toFixed(4)}</div>
+                                `;
+                            }
+                        }
+                    }
+                });
+
+                this.isTraining = false;
+                this.isTrained = true;
+                return history;
+            }
+
+            // Make prediction
+            predict(xValue) {
+                if (!this.isTrained) {
+                    throw new Error('Model is not trained yet!');
+                }
+
+                const prediction = this.model.predict(tf.tensor2d([xValue], [1, 1]));
+                return prediction.dataSync()[0];
+            }
+
+            // Get model weights
+            getWeights() {
+                if (!this.isTrained) {
+                    return null;
+                }
+
+                const weights = this.model.getWeights();
+                const weight = weights[0].dataSync()[0];
+                const bias = weights[1].dataSync()[0];
+                return { weight, bias };
+            }
+        }
+
+        // Global variables
+        let model = new LinearRegressionModel();
+        let trainingData = null;
+
+        // Initialize the application
+        function init() {
+            model.createModel();
+        }
+
+        // Generate and display training data
+        function generateAndDisplayTrainingData() {
+            trainingData = model.generateTrainingData(100);
+        }
+
+        // Train the model
+        async function trainModel() {
+            const trainButton = document.getElementById('trainButton');
+            const predictButton = document.getElementById('predictButton');
+            
+            // Generate training data if not already generated
+            if (!trainingData) {
+                generateAndDisplayTrainingData();
+            }
+            
+            trainButton.disabled = true;
+            trainButton.textContent = 'Training...';
+            
+            try {
+                const history = await model.train(trainingData, 100);
+                
+                document.getElementById('trainingStatus').innerHTML = `
+                    <div class="result">
+                        <h3>✅ Training Completed!</h3>
+                        <p>Final Loss: ${history.history.loss[history.history.loss.length - 1].toFixed(4)}</p>
+                    </div>
+                `;
+
+                // Display model performance
+                displayModelPerformance();
+                
+                predictButton.disabled = false;
+                trainButton.textContent = 'Retrain Model';
+                
+            } catch (error) {
+                document.getElementById('trainingStatus').innerHTML = `
+                    <div style="color: #ff6b6b;">Error during training: ${error.message}</div>
+                `;
+            }
+            
+            trainButton.disabled = false;
+        }
+
+        // Display model performance
+        function displayModelPerformance() {
+            const weights = model.getWeights();
+            
+            let performanceHtml = `
+                <div class="result">
+                    <h3>📊 Model Parameters</h3>
+                    <p><strong>Learned Weight (slope):</strong> ${weights.weight.toFixed(4)}</p>
+                    <p><strong>Learned Bias (intercept):</strong> ${weights.bias.toFixed(4)}</p>
+                    <p><strong>Learned Equation:</strong> y = ${weights.weight.toFixed(2)}x + ${weights.bias.toFixed(2)}</p>
+                    <p><strong>Target Equation:</strong> y = 3x + 4</p>
+                    <p><strong>Weight Error:</strong> ${Math.abs(3 - weights.weight).toFixed(4)}</p>
+                    <p><strong>Bias Error:</strong> ${Math.abs(4 - weights.bias).toFixed(4)}</p>
+                </div>
+            `;
+            
+            document.getElementById('modelPerformance').innerHTML = performanceHtml;
+        }
+
+        // Make prediction
+        function makePrediction() {
+            const inputX = parseFloat(document.getElementById('inputX').value);
+            
+            if (isNaN(inputX)) {
+                document.getElementById('predictionResult').innerHTML = `
+                    <div style="color: #ff6b6b;">Please enter a valid number</div>
+                `;
+                return;
+            }
+
+            try {
+                const prediction = model.predict(inputX);
+                const actualValue = 3 * inputX + 4;
+                const error = Math.abs(prediction - actualValue);
+                
+                document.getElementById('predictionResult').innerHTML = `
+                    <div class="result">
+                        <h3>🔮 Prediction Result</h3>
+                        <p><strong>Input X:</strong> ${inputX}</p>
+                        <p><strong>Predicted Y:</strong> ${prediction.toFixed(4)}</p>
+                        <p><strong>Actual Y (3x + 4):</strong> ${actualValue.toFixed(4)}</p>
+                        <p><strong>Prediction Error:</strong> ${error.toFixed(4)}</p>
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('predictionResult').innerHTML = `
+                    <div style="color: #ff6b6b;">Error: ${error.message}</div>
+                `;
+            }
+        }
+
+        // Initialize the application when page loads
+        window.onload = init;
+    </script>
+</body>
+</html>
